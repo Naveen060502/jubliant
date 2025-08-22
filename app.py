@@ -11,12 +11,20 @@ df = pd.read_excel(
 )
 
 # Sidebar filters
+# Sidebar filters (default = nothing selected)
 villages = df["Village Name"].dropna().unique().tolist()
-selected_villages = st.sidebar.multiselect("Select Village(s)", villages, default=villages)
+selected_villages = st.sidebar.multiselect(
+    "Select Village(s)", 
+    options=villages, 
+    default=[]  # <-- nothing selected by default
+)
 
-# Filter data based on selection
+# If no selection, show all villages
 if selected_villages:
-    df = df[df["Village Name"].isin(selected_villages)]
+    df_filtered = df[df["Village Name"].isin(selected_villages)]
+else:
+    df_filtered = df.copy()
+
 
 # Prepare village summary
 village_summary = df.groupby("Village Name").agg({
@@ -76,5 +84,6 @@ st.pyplot(fig)
 # ---------------- Table ----------------
 st.subheader("📍 Village-wise Average Summary")
 st.dataframe(village_summary)
+
 
 

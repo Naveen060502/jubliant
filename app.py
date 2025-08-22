@@ -29,40 +29,36 @@ if page == "Overall Summary":
     # Village filter
     if "Village Name" in df.columns:
         villages = ["All"] + df["Village Name"].dropna().unique().tolist()
-        selected_village = st.selectbox("Select Village", villages)
+        selected_village = st.sidebar.selectbox("Select Village", villages)
 
         village_df = df.copy()
         if selected_village != "All":
             village_df = village_df[village_df["Village Name"] == selected_village]
 
-        # Column chart - Yield
-        if "Yield (quintal/acre)" in village_df.columns:
-            st.subheader("🌾 Village-wise Yield (quintal/acre)")
-            village_yield = village_df.groupby("Village Name")["Yield (quintal/acre)"].mean().reset_index()
-            st.bar_chart(village_yield.set_index("Village Name"))
-
-        # KDE plots (bell-shaped curves)
-        st.subheader("📈 Distribution of Irrigation & Water Usage (KDE Curves)")
-        fig, ax = plt.subplots(figsize=(8, 5))
-        sns.kdeplot(village_df["No of Irrigation"], label="No of Irrigation", fill=True, ax=ax)
-        sns.kdeplot(village_df["Total Water (lakh L/acre)"], label="Total Water", fill=True, ax=ax)
-        sns.kdeplot(village_df["Irrigated Water (lakh L/acre)"], label="Irrigated Water", fill=True, ax=ax)
-        sns.kdeplot(village_df["Rain Water (lakh L/acre)"], label="Rain Water", fill=True, ax=ax)
-        ax.set_xlabel("Values")
-        ax.set_ylabel("Density")
-        ax.legend()
-        st.pyplot(fig)
-
-        # Table moved to end
+        # Village-wise averages
         village_summary = village_df.groupby("Village Name").agg({
             "No of Irrigation": "mean",
             "Total Water (lakh L/acre)": "mean",
             "Irrigated Water (lakh L/acre)": "mean",
             "Rain Water (lakh L/acre)": "mean",
-            "Yield (quintal/acre)": "mean"
+            "Yield (quintal/acre)": "mean" if "Yield (quintal/acre)" in df.columns else "mean"
         }).reset_index()
 
-        st.subheader("📍 Village-wise Average Summary")
+        # Column chart for irrigation & yield
+        st.subheader("📍 Village-wise Irrigation & Yield")
+        st.bar_chart(village_summary.set_index("Village Name")[["No of Irrigation", "Yield (quintal/acre)"]])
+
+        # Bell shape curves (KDE) for irrigation & total water
+        st.subheader("📊 Distribution of Irrigation & Total Water")
+        fig, ax = plt.subplots(figsize=(8, 5))
+        sns.kdeplot(village_df["Irrigated Water (lakh L/acre)"], label="Irrigated Water (lakh L/acre)", fill=True, alpha=0.4, ax=ax)
+        sns.kdeplot(village_df["Total Water (lakh L/acre)"], label="Total Water (lakh L/acre)", fill=True, alpha=0.4, ax=ax)
+        ax.legend()
+        ax.set_title("Bell Curve Distributions")
+        st.pyplot(fig)
+
+        # Move table to bottom
+        st.subheader("📋 Village-wise Average Summary Table")
         st.dataframe(village_summary)
 
 # ---------------- Sheet 2: Farmer Summary ----------------
@@ -88,18 +84,11 @@ elif page == "Farmer Summary":
             "No of Irrigation": "sum",
             "Total Water (lakh L/acre)": "sum",
             "Irrigated Water (lakh L/acre)": "sum",
-            "Rain Water (lakh L/acre)": "sum",
-            "Yield (quintal/acre)": "mean"
+            "Rain Water (lakh L/acre)": "sum"
         }).reset_index()
 
-        st.bar_chart(farmer_summary.set_index("Farmer Name")[[
-            "No of Irrigation",
-            "Total Water (lakh L/acre)",
-            "Irrigated Water (lakh L/acre)",
-            "Rain Water (lakh L/acre)"
-        ]])
-
-        st.subheader("📋 Farmer Summary Table")
         st.dataframe(farmer_summary)
+
+        st.bar_chart(farmer_summary.set_index("Farmer Name")[["No of Irrigation","Total Water (lakh L/acre)","Irrigated Water (lakh L/acre)","Rain Water (lakh L/acre)"]])
     else:
         st.warning("No data available for selected filters")

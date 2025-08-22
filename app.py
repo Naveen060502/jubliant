@@ -2,8 +2,11 @@ import pandas as pd
 import streamlit as st
 
 # Load the Excel file (only the required sheet)
-df = pd.read_excel("Jubliant_sugarcane_project-2024_summary.xlsx", 
-                   sheet_name="Summary_excluding_outliers")
+df = pd.read_excel(
+    "Jubliant_sugarcane_project-2024_summary.xlsx",
+    sheet_name="Summary_excluding_outliers",
+    engine="openpyxl"
+)
 
 # Set up navigation (2 dashboards)
 st.sidebar.title("Navigation")
@@ -66,3 +69,4 @@ elif page == "Farmer Summary":
         st.bar_chart(farmer_summary.set_index("FarmerName")[["IrrigationCount","TotalWaterUsed","IrrigatedWater","RainWater"]])
     else:
         st.warning("No data available for selected filters")
+

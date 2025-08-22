@@ -25,7 +25,7 @@ if page == "Overall Summary":
     col2.metric("Total Farmers", total_farmers)
 
     # Village-wise averages
-    if "Village" in df.columns:
+    if "Village Name" in df.columns:
         village_summary = df.groupby("Village").agg({
             "IrrigationCount": "mean",
             "TotalWaterUsed": "mean",
@@ -36,14 +36,14 @@ if page == "Overall Summary":
         st.subheader("📍 Village-wise Average Summary")
         st.dataframe(village_summary)
 
-        st.bar_chart(village_summary.set_index("Village")[["IrrigationCount","TotalWaterUsed","IrrigatedWater","RainWater"]])
+        st.bar_chart(village_summary.set_index("Village Name")[["IrrigationCount","TotalWaterUsed","IrrigatedWater","RainWater"]])
 
 # ---------------- Sheet 2: Farmer Summary ----------------
 elif page == "Farmer Summary":
     st.title("👨‍🌾 Farmer-wise Summary")
 
     # Filters
-    villages = ["All"] + df["Village"].dropna().unique().tolist()
+    villages = ["All"] + df["Village Name"].dropna().unique().tolist()
     farmers = ["All"] + df["FarmerName"].dropna().unique().tolist()
 
     selected_village = st.sidebar.selectbox("Select Village", villages)
@@ -51,7 +51,7 @@ elif page == "Farmer Summary":
 
     farmer_df = df.copy()
     if selected_village != "All":
-        farmer_df = farmer_df[farmer_df["Village"] == selected_village]
+        farmer_df = farmer_df[farmer_df["Village Name"] == selected_village]
     if selected_farmer != "All":
         farmer_df = farmer_df[farmer_df["FarmerName"] == selected_farmer]
 
@@ -69,4 +69,5 @@ elif page == "Farmer Summary":
         st.bar_chart(farmer_summary.set_index("FarmerName")[["IrrigationCount","TotalWaterUsed","IrrigatedWater","RainWater"]])
     else:
         st.warning("No data available for selected filters")
+
 

@@ -48,7 +48,7 @@ with tab1:
     # KPIs
     total_devices = filtered_summary["Device ID"].nunique()
     total_farmers = filtered_summary["Farmer Name"].nunique()
-    avg_irrigation = filtered_summary["No of irrigation"].mean()
+    avg_irrigation = filtered_summary["No of Irrigation"].mean()
     avg_yield = filtered_summary["Yield (quintal/acre)"].mean()
 
     kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
@@ -65,7 +65,7 @@ with tab1:
 
     with col1:
         fig, ax = plt.subplots()
-        sns.barplot(data=filtered_summary, x="Village Name", y="No of irrigation", estimator=np.mean, ci=None, ax=ax)
+        sns.barplot(data=filtered_summary, x="Village Name", y="No of Irrigation", estimator=np.mean, ci=None, ax=ax)
         ax.set_title("Village-wise Avg No. of Irrigation")
         ax.bar_label(ax.containers[0])
         st.pyplot(fig)
@@ -89,7 +89,7 @@ with tab1:
     # Village-wise avg table
     st.markdown("### 📋 Village-wise Averages")
     village_table = filtered_summary.groupby("VillageName").agg({
-        "No of irrigation": "mean",
+        "No of Irrigation": "mean",
         "Total Water (lakh L/acre)": "mean",
         "Irrigated Water (lakh L/acre)": "mean",
         "Rain Water (lakh L/acre)": "mean",
@@ -139,3 +139,4 @@ with tab2:
     ax.set_title("Moisture % over Time")
     ax.legend()
     st.pyplot(fig)
+

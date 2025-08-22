@@ -49,7 +49,7 @@ col1.metric("Total Devices", total_devices)
 col2.metric("Total Farmers", total_farmers)
 col3.metric("Avg No of Irrigation", avg_irrigation)
 col4.metric("Avg Yield (qtl/acre)", avg_yield)
-col5.metric("Season","Kharif 24")
+col5.metric("Season","Kharif24")
 
 # ---------------- Chart 1: No of Irrigation ----------------
 st.subheader("📊 Village-wise No of Irrigation")
@@ -85,6 +85,7 @@ st.pyplot(fig)
 # ---------------- Table ----------------
 st.subheader("📍 Village-wise Average Summary")
 st.dataframe(village_summary)
+
 
 
 

@@ -28,7 +28,7 @@ village_summary = df.groupby("Village Name").agg({
 }).reset_index()
 
 # ---------------- Dashboard ----------------
-st.title("🚜 Jubiliant Sugarcane Project - Overall Summary")
+st.title("Jubiliant Sugarcane Project - Overall Summary")
 
 # KPIs
 total_devices = df["Device ID"].nunique() if "Device ID" in df.columns else 0
@@ -77,3 +77,4 @@ st.pyplot(fig)
 # ---------------- Table ----------------
 st.subheader("📍 Village-wise Average Summary")
 st.dataframe(village_summary)
+

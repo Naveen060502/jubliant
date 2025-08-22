@@ -7,7 +7,7 @@ import numpy as np
 # Load Excel
 file_path = "moist_data.xlsx"
 df_summary = pd.read_excel(file_path, sheet_name="Summary_excluding_outliers")
-df_farmer = pd.read_excel(file_path, sheet_name="Farmer summary")
+df_farmer = pd.read_excel(file_path, sheet_name="Sheet1")
 
 # Ensure correct dtypes
 if "CreateDate" in df_farmer.columns:
@@ -139,3 +139,4 @@ with tab2:
                 markers=True,
             )
             st.plotly_chart(fig_line, use_container_width=True)
+

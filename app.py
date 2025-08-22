@@ -1,92 +1,141 @@
-import pandas as pd
 import streamlit as st
+import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# Load Excel sheet
-df = pd.read_excel(
-    "Jubliant_sugarcane_project-2024_summary.xlsx",
-    sheet_name="Summary_excluding_outliers",
-    engine="openpyxl"
-)
+# -----------------------------
+# Load Data
+# -----------------------------
+@st.cache_data
+def load_summary():
+    return pd.read_excel("Jubliant_sugarcane_project-2024_summary.xlsx", sheet_name="Summary_excluding_outliers")
 
-# Sidebar filters
-# Sidebar filters (default = nothing selected)
-villages = df["Village Name"].dropna().unique().tolist()
-selected_villages = st.sidebar.multiselect(
-    "Select Village(s)", 
-    options=villages, 
-    default=[]  # <-- nothing selected by default
-)
+@st.cache_data
+def load_farmer():
+    return pd.read_excel("moist_data.xlsx")
 
-# If no selection, show all villages
-if selected_villages:
-    df_filtered = df[df["Village Name"].isin(selected_villages)]
-else:
-    df_filtered = df.copy()
+summary_df = load_summary()
+farmer_df = load_farmer()
 
+# -----------------------------
+# Streamlit App
+# -----------------------------
+st.set_page_config(page_title="Jubilant Sugarcane Project Dashboard", layout="wide")
 
-# Prepare village summary
-village_summary = df.groupby("Village Name").agg({
-    "No of Irrigation": "mean",
-    "Yield (quintal/acre)": "mean",
-    "Total Water (lakh L/acre)": "mean",
-    "Irrigated Water (lakh L/acre)": "mean",
-    "Rain Water (lakh L/acre)": "mean"
-}).reset_index()
+st.title("🌾 Jubilant Sugarcane Project Dashboard")
 
-# ---------------- Dashboard ----------------
-st.title("Jubiliant Sugarcane Project")
+# Tabs
+tab1, tab2 = st.tabs(["📊 Overall Summary", "👩‍🌾 Farmer Summary"])
 
-# KPIs
-total_devices = df["Device ID"].nunique() if "Device ID" in df.columns else 0
-total_farmers = df["Farmer Name"].nunique() if "Farmer Name" in df.columns else 0
-avg_irrigation = df["No of Irrigation"].mean().round(2)
-avg_yield = df["Yield (quintal/acre)"].mean().round(2)
+# -----------------------------
+# Tab 1 - Overall Summary
+# -----------------------------
+with tab1:
+    st.subheader("📊 Overall Summary - Kharif 2024")
 
-col1, col2, col3, col4, col5 = st.columns(5)
-col1.metric("Total Devices", total_devices)
-col2.metric("Total Farmers", total_farmers)
-col3.metric("Avg No of Irrigation", avg_irrigation)
-col4.metric("Avg Yield (qtl/acre)", avg_yield)
-col5.metric("Season","Kharif24")
+    # Village filter
+    villages = summary_df["Village Name"].unique().tolist()
+    selected_villages = st.multiselect(
+        "Select Village(s)", villages, default=villages, placeholder="Select villages"
+    )
 
-# ---------------- Chart 1: No of Irrigation ----------------
-st.subheader("📊 Village-wise No of Irrigation")
-fig, ax = plt.subplots(figsize=(8, 5))
-bars = ax.bar(village_summary["Village Name"], village_summary["No of Irrigation"], color="skyblue")
-ax.set_ylabel("No of Irrigation")
-ax.set_xlabel("Village")
-ax.set_title("Village-wise No of Irrigation")
-ax.bar_label(bars, fmt="%.1f", padding=3)
-st.pyplot(fig)
+    if selected_villages:
+        filtered_summary = summary_df[summary_df["Village Name"].isin(selected_villages)]
+    else:
+        filtered_summary = summary_df.copy()
 
-# ---------------- Chart 2: Distribution Curves ----------------
-st.subheader("🔔 Distribution of Irrigation & Total Water")
-fig, ax = plt.subplots(figsize=(8, 5))
-sns.kdeplot(df["Irrigated Water (lakh L/acre)"], label="Irrigation Water", fill=True, ax=ax)
-sns.kdeplot(df["Total Water (lakh L/acre)"], label="Total Water", fill=True, ax=ax)
-ax.set_title("Distribution (Bell-Shaped Curves)")
-ax.set_xlabel("Value")
-ax.set_ylabel("Density")
-ax.legend()
-st.pyplot(fig)
+    # KPIs
+    total_devices = filtered_summary["Device ID"].nunique()
+    total_farmers = filtered_summary["Farmer Name"].nunique()
+    avg_irrigation = filtered_summary["No of irrigation"].mean()
+    avg_yield = filtered_summary["Yield (quintal/acre)"].mean()
 
-# ---------------- Chart 3: Yield ----------------
-st.subheader("🌾 Village-wise Yield (quintal/acre)")
-fig, ax = plt.subplots(figsize=(8, 5))
-bars = ax.bar(village_summary["Village Name"], village_summary["Yield (quintal/acre)"], color="green")
-ax.set_ylabel("Yield (qtl/acre)")
-ax.set_xlabel("Village")
-ax.set_title("Village-wise Yield")
-ax.bar_label(bars, fmt="%.1f", padding=3)
-st.pyplot(fig)
+    kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
+    kpi1.metric("Total Devices", total_devices)
+    kpi2.metric("Total Farmers", total_farmers)
+    kpi3.metric("Avg No. of Irrigation", f"{avg_irrigation:.2f}")
+    kpi4.metric("Avg Yield (qtl/acre)", f"{avg_yield:.2f}")
+    kpi5.metric("Season", "Kharif 2024")
 
-# ---------------- Table ----------------
-st.subheader("📍 Village-wise Average Summary")
-st.dataframe(village_summary)
+    # Charts
+    st.markdown("### 🌍 Village-wise Charts")
 
+    col1, col2 = st.columns(2)
 
+    with col1:
+        fig, ax = plt.subplots()
+        sns.barplot(data=filtered_summary, x="Village Name", y="No of irrigation", estimator=np.mean, ci=None, ax=ax)
+        ax.set_title("Village-wise Avg No. of Irrigation")
+        ax.bar_label(ax.containers[0])
+        st.pyplot(fig)
 
+    with col2:
+        fig, ax = plt.subplots()
+        sns.barplot(data=filtered_summary, x="VillageName", y="Yield (quintal/acre)", estimator=np.mean, ci=None, ax=ax)
+        ax.set_title("Village-wise Avg Yield")
+        ax.bar_label(ax.containers[0])
+        st.pyplot(fig)
 
+    # Bell shape curves
+    st.markdown("### 🔔 Distribution Curves")
+    fig, ax = plt.subplots()
+    sns.kdeplot(filtered_summary["Irrigated Water (lakh L/acre)"], fill=True, label="Irrigated Water", ax=ax)
+    sns.kdeplot(filtered_summary["Total Water (lakh L/acre)"], fill=True, label="Total Water Used", ax=ax)
+    ax.set_title("Distribution of Irrigation & Total Water")
+    ax.legend()
+    st.pyplot(fig)
 
+    # Village-wise avg table
+    st.markdown("### 📋 Village-wise Averages")
+    village_table = filtered_summary.groupby("VillageName").agg({
+        "No of irrigation": "mean",
+        "Total Water (lakh L/acre)": "mean",
+        "Irrigated Water (lakh L/acre)": "mean",
+        "Rain Water (lakh L/acre)": "mean",
+        "Yield (quintal/acre)": "mean"
+    }).reset_index()
+    st.dataframe(village_table.style.format("{:.2f}"))
+
+# -----------------------------
+# Tab 2 - Farmer Summary
+# -----------------------------
+with tab2:
+    st.subheader("👩‍🌾 Farmer Summary")
+
+    # Farmer filter
+    farmers = farmer_df["FarmerName"].unique().tolist()
+    selected_farmers = st.multiselect(
+        "Select Farmer(s)", farmers, default=farmers, placeholder="Select farmers"
+    )
+
+    if selected_farmers:
+        filtered_farmer = farmer_df[farmer_df["FarmerName"].isin(selected_farmers)]
+    else:
+        filtered_farmer = farmer_df.copy()
+
+    # Farmer table
+    st.markdown("### 📋 Farmer Details")
+    farmer_details = filtered_farmer[["FarmerName", "FatherName", "MobileNumber", "VillageName", "DeviceID"]].drop_duplicates()
+    st.dataframe(farmer_details)
+
+    # Irrigation count per farmer
+    st.markdown("### 📊 Irrigation Count per Farmer")
+    fig, ax = plt.subplots()
+    irrigation_counts = filtered_farmer.groupby("FarmerName")["No_of_irrigation"].mean().reset_index()
+    sns.barplot(data=irrigation_counts, x="FarmerName", y="No_of_irrigation", ax=ax)
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
+    ax.bar_label(ax.containers[0])
+    st.pyplot(fig)
+
+    # Moisture line chart
+    st.markdown("### 📈 Moisture Variation Over Time")
+    fig, ax = plt.subplots()
+    for farmer in filtered_farmer["FarmerName"].unique():
+        subset = filtered_farmer[filtered_farmer["FarmerName"] == farmer]
+        ax.plot(subset["CreateDate"], subset["CalculatedValue"], marker="o", label=farmer)
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Moisture (%)")
+    ax.set_title("Moisture % over Time")
+    ax.legend()
+    st.pyplot(fig)

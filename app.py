@@ -110,7 +110,7 @@ with tab2:
     )
 
     if selected_farmers:
-        filtered_farmer = farmer_df[farmer_df["FarmerName"].isin(selected_farmers)]
+        filtered_farmer = farmer_df[farmer_df["Farmer Name"].isin(selected_farmers)]
     else:
         filtered_farmer = farmer_df.copy()
 
@@ -139,3 +139,4 @@ with tab2:
     ax.set_title("Moisture % over Time")
     ax.legend()
     st.pyplot(fig)
+

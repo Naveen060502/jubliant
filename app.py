@@ -1,16 +1,16 @@
 import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
-import seaborn as sns
+import numpy as np
 
-# Load the Excel file (only the required sheet)
+# Load Excel (Summary sheet only)
 df = pd.read_excel(
     "Jubliant_sugarcane_project-2024_summary.xlsx",
     sheet_name="Summary_excluding_outliers",
     engine="openpyxl"
 )
 
-# Set up navigation (2 dashboards)
+# Sidebar navigation
 st.sidebar.title("Navigation")
 page = st.sidebar.radio("Go to", ["Overall Summary", "Farmer Summary"])
 
@@ -21,44 +21,54 @@ if page == "Overall Summary":
     # Total devices and farmers
     total_devices = df["Device ID"].nunique() if "Device ID" in df.columns else 0
     total_farmers = df["Farmer Name"].nunique() if "Farmer Name" in df.columns else 0
+    avg_irrigation = df["No of Irrigation"].mean() if "No of Irrigation" in df.columns else 0
+    avg_yield = df["Yield (quintal/acre)"].mean() if "Yield (quintal/acre)" in df.columns else 0
 
-    col1, col2 = st.columns(2)
+    col1, col2, col3, col4, col5 = st.columns(5)
     col1.metric("Total Devices", total_devices)
     col2.metric("Total Farmers", total_farmers)
+    col3.metric("Avg Irrigation", f"{avg_irrigation:.2f}")
+    col4.metric("Avg Yield", f"{avg_yield:.2f}")
+    col5.metric("Season", "Kharif 2024")
 
-    # Village filter
+    # Village-wise summary
     if "Village Name" in df.columns:
-        villages = ["All"] + df["Village Name"].dropna().unique().tolist()
-        selected_village = st.sidebar.selectbox("Select Village", villages)
-
-        village_df = df.copy()
-        if selected_village != "All":
-            village_df = village_df[village_df["Village Name"] == selected_village]
-
-        # Village-wise averages
-        village_summary = village_df.groupby("Village Name").agg({
+        village_summary = df.groupby("Village Name").agg({
             "No of Irrigation": "mean",
             "Total Water (lakh L/acre)": "mean",
             "Irrigated Water (lakh L/acre)": "mean",
             "Rain Water (lakh L/acre)": "mean",
-            "Yield (quintal/acre)": "mean" if "Yield (quintal/acre)" in df.columns else "mean"
+            "Yield (quintal/acre)": "mean"
         }).reset_index()
 
-        # Column chart for irrigation & yield
-        st.subheader("📍 Village-wise Irrigation & Yield")
-        st.bar_chart(village_summary.set_index("Village Name")[["No of Irrigation", "Yield (quintal/acre)"]])
+        # 1️⃣ Column Chart - Irrigation
+        st.subheader("📊 Village-wise Average No. of Irrigation")
+        st.bar_chart(village_summary.set_index("Village Name")["No of Irrigation"])
 
-        # Bell shape curves (KDE) for irrigation & total water
-        st.subheader("📊 Distribution of Irrigation & Total Water")
+        # 2️⃣ Bell Shape Curves - Irrigation & Total Water
+        st.subheader("🔔 Distribution of Irrigation & Total Water")
+
         fig, ax = plt.subplots(figsize=(8, 5))
-        sns.kdeplot(village_df["Irrigated Water (lakh L/acre)"], label="Irrigated Water (lakh L/acre)", fill=True, alpha=0.4, ax=ax)
-        sns.kdeplot(village_df["Total Water (lakh L/acre)"], label="Total Water (lakh L/acre)", fill=True, alpha=0.4, ax=ax)
+        x_irrig = np.linspace(df["Irrigated Water (lakh L/acre)"].min(), df["Irrigated Water (lakh L/acre)"].max(), 200)
+        mu_irrig, sigma_irrig = df["Irrigated Water (lakh L/acre)"].mean(), df["Irrigated Water (lakh L/acre)"].std()
+        y_irrig = (1 / (sigma_irrig * np.sqrt(2 * np.pi))) * np.exp(-0.5 * ((x_irrig - mu_irrig) / sigma_irrig) ** 2)
+        ax.plot(x_irrig, y_irrig, label="Irrigated Water (lakh L/acre)", color="blue")
+
+        x_water = np.linspace(df["Total Water (lakh L/acre)"].min(), df["Total Water (lakh L/acre)"].max(), 200)
+        mu_water, sigma_water = df["Total Water (lakh L/acre)"].mean(), df["Total Water (lakh L/acre)"].std()
+        y_water = (1 / (sigma_water * np.sqrt(2 * np.pi))) * np.exp(-0.5 * ((x_water - mu_water) / sigma_water) ** 2)
+        ax.plot(x_water, y_water, label="Total Water", color="green")
+
+        ax.set_title("Bell Curve Distribution")
         ax.legend()
-        ax.set_title("Bell Curve Distributions")
         st.pyplot(fig)
 
-        # Move table to bottom
-        st.subheader("📋 Village-wise Average Summary Table")
+        # 3️⃣ Column Chart - Yield
+        st.subheader("🌾 Village-wise Average Yield (quintal/acre)")
+        st.bar_chart(village_summary.set_index("Village Name")["Yield (quintal/acre)"])
+
+        # 4️⃣ End of page - Village-wise Table
+        st.subheader("📍 Village-wise Average Summary")
         st.dataframe(village_summary)
 
 # ---------------- Sheet 2: Farmer Summary ----------------
@@ -84,11 +94,17 @@ elif page == "Farmer Summary":
             "No of Irrigation": "sum",
             "Total Water (lakh L/acre)": "sum",
             "Irrigated Water (lakh L/acre)": "sum",
-            "Rain Water (lakh L/acre)": "sum"
+            "Rain Water (lakh L/acre)": "sum",
+            "Yield (quintal/acre)": "mean"
         }).reset_index()
 
         st.dataframe(farmer_summary)
 
-        st.bar_chart(farmer_summary.set_index("Farmer Name")[["No of Irrigation","Total Water (lakh L/acre)","Irrigated Water (lakh L/acre)","Rain Water (lakh L/acre)"]])
+        st.bar_chart(farmer_summary.set_index("Farmer Name")[[
+            "No of Irrigation",
+            "Total Water (lakh L/acre)",
+            "Irrigated Water (lakh L/acre)",
+            "Rain Water (lakh L/acre)"
+        ]])
     else:
         st.warning("No data available for selected filters")

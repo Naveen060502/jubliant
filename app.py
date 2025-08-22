@@ -1,6 +1,7 @@
 import pandas as pd
 import streamlit as st
-import plotly.express as px
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 # Load the Excel file (only the required sheet)
 df = pd.read_excel(
@@ -9,7 +10,7 @@ df = pd.read_excel(
     engine="openpyxl"
 )
 
-# Sidebar Navigation
+# Set up navigation (2 dashboards)
 st.sidebar.title("Navigation")
 page = st.sidebar.radio("Go to", ["Overall Summary", "Farmer Summary"])
 
@@ -26,16 +27,34 @@ if page == "Overall Summary":
     col2.metric("Total Farmers", total_farmers)
 
     # Village filter
-    villages = ["All"] + df["Village Name"].dropna().unique().tolist()
-    selected_village = st.sidebar.selectbox("Select Village", villages)
+    if "Village Name" in df.columns:
+        villages = ["All"] + df["Village Name"].dropna().unique().tolist()
+        selected_village = st.selectbox("Select Village", villages)
 
-    filtered_df = df.copy()
-    if selected_village != "All":
-        filtered_df = filtered_df[filtered_df["Village Name"] == selected_village]
+        village_df = df.copy()
+        if selected_village != "All":
+            village_df = village_df[village_df["Village Name"] == selected_village]
 
-    # 📍 Village-wise averages
-    if "Village Name" in filtered_df.columns:
-        village_summary = filtered_df.groupby("Village Name").agg({
+        # Column chart - Yield
+        if "Yield (quintal/acre)" in village_df.columns:
+            st.subheader("🌾 Village-wise Yield (quintal/acre)")
+            village_yield = village_df.groupby("Village Name")["Yield (quintal/acre)"].mean().reset_index()
+            st.bar_chart(village_yield.set_index("Village Name"))
+
+        # KDE plots (bell-shaped curves)
+        st.subheader("📈 Distribution of Irrigation & Water Usage (KDE Curves)")
+        fig, ax = plt.subplots(figsize=(8, 5))
+        sns.kdeplot(village_df["No of Irrigation"], label="No of Irrigation", fill=True, ax=ax)
+        sns.kdeplot(village_df["Total Water (lakh L/acre)"], label="Total Water", fill=True, ax=ax)
+        sns.kdeplot(village_df["Irrigated Water (lakh L/acre)"], label="Irrigated Water", fill=True, ax=ax)
+        sns.kdeplot(village_df["Rain Water (lakh L/acre)"], label="Rain Water", fill=True, ax=ax)
+        ax.set_xlabel("Values")
+        ax.set_ylabel("Density")
+        ax.legend()
+        st.pyplot(fig)
+
+        # Table moved to end
+        village_summary = village_df.groupby("Village Name").agg({
             "No of Irrigation": "mean",
             "Total Water (lakh L/acre)": "mean",
             "Irrigated Water (lakh L/acre)": "mean",
@@ -45,56 +64,6 @@ if page == "Overall Summary":
 
         st.subheader("📍 Village-wise Average Summary")
         st.dataframe(village_summary)
-
-        # --- Chart 1: Column chart for No of Irrigation ---
-        st.subheader("📊 No of Irrigations per Village")
-        fig_bar = px.bar(
-            village_summary,
-            x="Village Name",
-            y="No of Irrigation",
-            title="Village-wise No of Irrigations",
-            text_auto=True,
-            color="Village Name"
-        )
-        st.plotly_chart(fig_bar, use_container_width=True)
-
-        # --- Chart 2: Column chart for Yield ---
-        st.subheader("🌾 Yield (quintal/acre) per Village")
-        fig_yield = px.bar(
-            village_summary,
-            x="Village Name",
-            y="Yield (quintal/acre)",
-            title="Village-wise Yield",
-            text_auto=True,
-            color="Village Name"
-        )
-        st.plotly_chart(fig_yield, use_container_width=True)
-
-        # --- Chart 3: Normalized Bell Curves for Water Usage ---
-        st.subheader("🔔 Distribution of Water Usage (Normalized)")
-        melted = filtered_df.melt(
-            id_vars=["Village Name"],
-            value_vars=[
-                "No of Irrigation",
-                "Total Water (lakh L/acre)",
-                "Irrigated Water (lakh L/acre)",
-                "Rain Water (lakh L/acre)"
-            ],
-            var_name="Metric",
-            value_name="Value"
-        )
-
-        fig_dist = px.histogram(
-            melted,
-            x="Value",
-            color="Metric",
-            marginal="box",  # adds boxplot above
-            histnorm="probability density",  # normalized bell-shape
-            barmode="overlay",
-            opacity=0.6
-        )
-        fig_dist.update_traces(marker_line_width=1, marker_line_color="white")
-        st.plotly_chart(fig_dist, use_container_width=True)
 
 # ---------------- Sheet 2: Farmer Summary ----------------
 elif page == "Farmer Summary":
@@ -120,25 +89,17 @@ elif page == "Farmer Summary":
             "Total Water (lakh L/acre)": "sum",
             "Irrigated Water (lakh L/acre)": "sum",
             "Rain Water (lakh L/acre)": "sum",
-            "Yield (quintal/acre)": "mean"   # yield usually avg, not sum
+            "Yield (quintal/acre)": "mean"
         }).reset_index()
 
-        st.subheader("👨‍🌾 Farmer Summary Table")
-        st.dataframe(farmer_summary)
+        st.bar_chart(farmer_summary.set_index("Farmer Name")[[
+            "No of Irrigation",
+            "Total Water (lakh L/acre)",
+            "Irrigated Water (lakh L/acre)",
+            "Rain Water (lakh L/acre)"
+        ]])
 
-        # Chart for Farmer comparison
-        st.subheader("📊 Farmer-wise Irrigation, Water & Yield")
-        fig_farmer = px.bar(
-            farmer_summary,
-            x="Farmer Name",
-            y=["No of Irrigation",
-               "Total Water (lakh L/acre)",
-               "Irrigated Water (lakh L/acre)",
-               "Rain Water (lakh L/acre)",
-               "Yield (quintal/acre)"],
-            barmode="group",
-            title="Farmer-wise Summary"
-        )
-        st.plotly_chart(fig_farmer, use_container_width=True)
+        st.subheader("📋 Farmer Summary Table")
+        st.dataframe(farmer_summary)
     else:
         st.warning("No data available for selected filters")

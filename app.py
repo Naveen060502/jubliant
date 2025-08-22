@@ -36,7 +36,7 @@ village_summary = df.groupby("Village Name").agg({
 }).reset_index()
 
 # ---------------- Dashboard ----------------
-st.title("Jubiliant Sugarcane Project - Kharif 2024")
+st.title("Jubiliant Sugarcane Project")
 
 # KPIs
 total_devices = df["Device ID"].nunique() if "Device ID" in df.columns else 0
@@ -49,6 +49,7 @@ col1.metric("Total Devices", total_devices)
 col2.metric("Total Farmers", total_farmers)
 col3.metric("Avg No of Irrigation", avg_irrigation)
 col4.metric("Avg Yield (qtl/acre)", avg_yield)
+col5.metric("Season","Kharif 24")
 
 # ---------------- Chart 1: No of Irrigation ----------------
 st.subheader("📊 Village-wise No of Irrigation")
@@ -84,6 +85,7 @@ st.pyplot(fig)
 # ---------------- Table ----------------
 st.subheader("📍 Village-wise Average Summary")
 st.dataframe(village_summary)
+
 
 
 

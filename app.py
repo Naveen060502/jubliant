@@ -34,16 +34,20 @@ tab1, tab2 = st.tabs(["📊 Overall Summary", "👩‍🌾 Farmer Summary"])
 with tab1:
     st.subheader("📊 Overall Summary - Kharif 2024")
 
-    # Village filter
-    villages = summary_df["Village Name"].unique().tolist()
-    selected_villages = st.multiselect(
-        "Select Village(s)", villages, default=villages, placeholder="Select villages"
+    # Sidebar filters (default = nothing selected)
+    villages = df["Village Name"].dropna().unique().tolist()
+    selected_villages = st.sidebar.multiselect(
+        "Select Village(s)", 
+        options=villages, 
+        default=[]  # <-- nothing selected by default
     )
-
+    
+    # If no selection, show all villages
     if selected_villages:
-        filtered_summary = summary_df[summary_df["Village Name"].isin(selected_villages)]
+        df_filtered = df[df["Village Name"].isin(selected_villages)]
     else:
-        filtered_summary = summary_df.copy()
+        df_filtered = df.copy()
+
 
     # KPIs
     total_devices = filtered_summary["Device ID"].nunique()
@@ -72,7 +76,7 @@ with tab1:
 
     with col2:
         fig, ax = plt.subplots()
-        sns.barplot(data=filtered_summary, x="VillageName", y="Yield (quintal/acre)", estimator=np.mean, ci=None, ax=ax)
+        sns.barplot(data=filtered_summary, x="Village Name", y="Yield (quintal/acre)", estimator=np.mean, ci=None, ax=ax)
         ax.set_title("Village-wise Avg Yield")
         ax.bar_label(ax.containers[0])
         st.pyplot(fig)
@@ -139,4 +143,5 @@ with tab2:
     ax.set_title("Moisture % over Time")
     ax.legend()
     st.pyplot(fig)
+
 

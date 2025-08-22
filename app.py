@@ -1,142 +1,119 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 import numpy as np
+import matplotlib.pyplot as plt
 
-# Load Excel
-file_path = "moist_data.xlsx"
-df_summary = pd.read_excel(file_path, sheet_name="Summary_excluding_outliers")
-df_farmer = pd.read_excel(file_path, sheet_name="Sheet1")
+# =========================
+# Load Excel File
+# =========================
+file_path = "moist_data.xlsx"  # make sure file is in same folder
 
-# Ensure correct dtypes
-if "CreateDate" in df_farmer.columns:
-    df_farmer["CreateDate"] = pd.to_datetime(df_farmer["CreateDate"], errors="coerce")
+# Get available sheet names
+xls = pd.ExcelFile(file_path)
+sheet_names = xls.sheet_names
 
-# Streamlit Page Setup
-st.set_page_config(page_title="Jubiliant Sugarcane Project Dashboard", layout="wide")
+# Try loading sheets dynamically
+df_summary = pd.read_excel(file_path, sheet_name=[s for s in sheet_names if "Summary_excluding_outliers" in s.lower()][0])
+df_farmer = pd.read_excel(file_path, sheet_name=[s for s in sheet_names if "Sheet1" in s.lower()][0])
+
+# =========================
+# Streamlit Dashboard
+# =========================
+st.set_page_config(page_title="Jubiliant Sugarcane Project", layout="wide")
 
 st.title("🌾 Jubiliant Sugarcane Project Dashboard")
 
 # Tabs
-tab1, tab2 = st.tabs(["📊 Village Summary", "👨‍🌾 Farmer Summary"])
+tab1, tab2 = st.tabs(["📊 Dashboard Summary", "👨‍🌾 Farmer Summary"])
 
-# -------------------------
-# TAB 1: Village Summary
-# -------------------------
+# =========================
+# TAB 1: Dashboard Summary
+# =========================
 with tab1:
-    st.subheader("📊 Village Level Summary")
+    st.header("Village-wise Irrigation & Yield Summary")
 
-    # Village filter
-    all_villages = df_summary["Village Name"].dropna().unique().tolist()
-    selected_villages = st.multiselect(
-        "Select Village(s)", options=all_villages, default=[]
-    )
+    # Filters
+    villages = df_summary["Village Name"].dropna().unique().tolist()
+    selected_villages = st.multiselect("Select Village(s)", villages, default=[])
 
-    # Apply filter
     if selected_villages:
-        df_village = df_summary[df_summary["Village Name"].isin(selected_villages)]
+        df_filtered = df_summary[df_summary["Village Name"].isin(selected_villages)]
     else:
-        df_village = df_summary.copy()
+        df_filtered = df_summary.copy()
 
     # KPIs
-    total_devices = df_village["Total Devices"].sum()
-    total_farmers = df_village["Total Farmers"].sum()
-    avg_irrigation = df_village["No of Irrigation"].mean().round(2)
-    avg_yield = df_village["Yield (quintal/acre)"].mean().round(2)
+    total_devices = df_filtered["DeviceID"].nunique()
+    total_farmers = df_filtered["Farmer Name"].nunique()
+    avg_irrigations = round(df_filtered["No of Irrigation"].mean(), 2)
+    avg_yield = round(df_filtered["Yield"].mean(), 2)
 
     kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
-    kpi1.metric("📟 Total Devices", total_devices)
-    kpi2.metric("👨‍🌾 Total Farmers", total_farmers)
-    kpi3.metric("💧 Avg No. of Irrigation", avg_irrigation)
-    kpi4.metric("🌾 Avg Yield (qtl/acre)", avg_yield)
-    kpi5.metric("🗓️ Season", "Kharif 2024")
+    kpi1.metric("Total Devices", total_devices)
+    kpi2.metric("Total Farmers", total_farmers)
+    kpi3.metric("Avg No. of Irrigations", avg_irrigations)
+    kpi4.metric("Avg Yield (tons/acre)", avg_yield)
+    kpi5.metric("Season", "Kharif 2024")
 
-    # No. of Irrigation Column Chart
-    fig_irrig = px.bar(
-        df_village,
-        x="Village Name",
-        y="No of Irrigation",
-        text="No of Irrigation",
-        title="🌊 Average No. of Irrigations (Village-wise)",
-    )
-    fig_irrig.update_traces(textposition="outside")
-    st.plotly_chart(fig_irrig, use_container_width=True)
+    # --- No. of Irrigation Chart ---
+    st.subheader("No. of Irrigations (Village-wise)")
+    fig1, ax1 = plt.subplots(figsize=(8, 4))
+    df_filtered.groupby("Village Name")["No of Irrigation"].mean().plot(kind="bar", ax=ax1)
+    ax1.set_ylabel("Avg Irrigations")
+    ax1.set_xlabel("Village")
+    ax1.bar_label(ax1.containers[0])
+    st.pyplot(fig1)
 
-    # Distribution (Bell Curve)
-    irrigation_data = df_village["No of Irrigation"].dropna()
-    totalwater_data = df_village["Total Water"].dropna()
+    # --- Distribution Curve (Irrigation & Water) ---
+    st.subheader("Distribution of Irrigation & Total Water")
+    fig2, ax2 = plt.subplots(figsize=(8, 4))
+    df_filtered["No of Irrigation"].plot(kind="kde", ax=ax2, label="No of Irrigation")
+    df_filtered["Total Water"].plot(kind="kde", ax=ax2, label="Total Water (inches)")
+    ax2.set_xlabel("Value")
+    ax2.set_ylabel("Density")
+    ax2.legend()
+    st.pyplot(fig2)
 
-    if not irrigation_data.empty:
-        x_irrig = np.linspace(irrigation_data.min(), irrigation_data.max(), 100)
-        y_irrig = (
-            1 / (irrigation_data.std() * np.sqrt(2 * np.pi))
-        ) * np.exp(-0.5 * ((x_irrig - irrigation_data.mean()) / irrigation_data.std()) ** 2)
+    # --- Yield Chart ---
+    st.subheader("Yield (Village-wise)")
+    fig3, ax3 = plt.subplots(figsize=(8, 4))
+    df_filtered.groupby("Village Name")["Yield"].mean().plot(kind="bar", ax=ax3, color="orange")
+    ax3.set_ylabel("Avg Yield (tons/acre)")
+    ax3.set_xlabel("Village")
+    ax3.bar_label(ax3.containers[0])
+    st.pyplot(fig3)
 
-        fig_curve = go.Figure()
-        fig_curve.add_trace(go.Scatter(x=x_irrig, y=y_irrig, mode="lines", name="Irrigation"))
+    # --- Village-wise Avg Table ---
+    st.subheader("Village-wise Averages")
+    village_table = df_filtered.groupby("Village Name").agg({
+        "No of Irrigation": "mean",
+        "Total Water": "mean",
+        "Yield": "mean"
+    }).reset_index()
+    st.dataframe(village_table)
 
-        if not totalwater_data.empty:
-            x_tw = np.linspace(totalwater_data.min(), totalwater_data.max(), 100)
-            y_tw = (
-                1 / (totalwater_data.std() * np.sqrt(2 * np.pi))
-            ) * np.exp(-0.5 * ((x_tw - totalwater_data.mean()) / totalwater_data.std()) ** 2)
-            fig_curve.add_trace(go.Scatter(x=x_tw, y=y_tw, mode="lines", name="Total Water"))
-
-        fig_curve.update_layout(title="📈 Distribution of Irrigation & Total Water (Bell Curve)")
-        st.plotly_chart(fig_curve, use_container_width=True)
-
-    # Yield Column Chart
-    fig_yield = px.bar(
-        df_village,
-        x="Village Name",
-        y="Yield (quintal/acre)",
-        text="Yield (quintal/acre)",
-        title="🌾 Yield (qtl/acre) Village-wise",
-    )
-    fig_yield.update_traces(textposition="outside")
-    st.plotly_chart(fig_yield, use_container_width=True)
-
-    # Village Summary Table
-    st.subheader("📋 Village-wise Average Summary")
-    st.dataframe(df_village)
-
-# -------------------------
+# =========================
 # TAB 2: Farmer Summary
-# -------------------------
+# =========================
 with tab2:
-    st.subheader("👨‍🌾 Farmer Level Summary")
+    st.header("Farmer-wise Irrigation & Details")
 
-    # Farmer filter
-    all_farmers = df_farmer["FarmerName"].dropna().unique().tolist()
-    selected_farmers = st.multiselect(
-        "Select Farmer(s)", options=all_farmers, default=[]
-    )
+    farmers = df_farmer["FarmerName"].dropna().unique().tolist()
+    selected_farmer = st.selectbox("Select Farmer", farmers)
 
-    if selected_farmers:
-        df_filt = df_farmer[df_farmer["FarmerName"].isin(selected_farmers)]
-    else:
-        df_filt = df_farmer.copy()
+    farmer_data = df_farmer[df_farmer["FarmerName"] == selected_farmer]
 
-    for farmer in df_filt["FarmerName"].unique():
-        st.markdown(f"### 👨‍🌾 Farmer: {farmer}")
-        f_df = df_filt[df_filt["FarmerName"] == farmer]
+    # Farmer details table
+    st.subheader("Farmer Personal Details")
+    detail_cols = ["FarmerName", "FatherName", "MobileNumber", "VillageName", "DeviceID"]
+    farmer_details = farmer_data[detail_cols].drop_duplicates()
+    st.table(farmer_details)
 
-        # Personal details
-        details = f_df[
-            ["FarmerName", "FatherName", "MobileNumber", "VillageName", "DeviceID"]
-        ].drop_duplicates()
-
-        st.table(details)
-
-        # Irrigation Line Chart
-        if not f_df.empty:
-            fig_line = px.line(
-                f_df,
-                x="CreateDate",
-                y="CalculatedValue",
-                title=f"💧 Irrigation Trend for {farmer}",
-                markers=True,
-            )
-            st.plotly_chart(fig_line, use_container_width=True)
-
+    # Irrigation Line Chart
+    st.subheader("Irrigation Moisture Trend")
+    fig4, ax4 = plt.subplots(figsize=(10, 4))
+    farmer_data = farmer_data.sort_values("CreateDate")
+    ax4.plot(farmer_data["CreateDate"], farmer_data["CalculatedValue"], marker="o")
+    ax4.set_xlabel("Date")
+    ax4.set_ylabel("Moisture (%)")
+    ax4.set_title(f"Irrigation Trend - {selected_farmer}")
+    st.pyplot(fig4)

@@ -3,4 +3,4 @@ openpyxl
 streamlit
 plotly
 seaborn
-
+matplotlib
